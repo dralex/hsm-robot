@@ -34,9 +34,9 @@ namespace HSMRobot {
 		Network();
 		virtual ~Network();
 		
-		NetworkError connect(const char* hostname, unsigned int port, bool tcp = false);
+		NetworkError connect(const char* hostname, const char* port, const char* proto);
 		NetworkError disconnect();
-		NetworkError listen(const char* hostname, unsigned int port, bool tcp = false);
+		NetworkError listen(const char* hostname, const char* port, const char* proto);
 		NetworkError has_connection(bool& available);
 		NetworkError wait_connection(unsigned int timeout);
 		NetworkError accept_connection();
@@ -51,7 +51,7 @@ namespace HSMRobot {
 		bool         tcp;
 		
 	private:
-		NetworkError init_socket(const char* hostname, unsigned int port, bool tcp);
+		NetworkError init_socket_type(const char* hostname, const char* port, const char* proto);
 		NetworkError set_nonblocking(int fd);
 		
 		char         hostname[ADDRESS_BUFFER_SIZE];

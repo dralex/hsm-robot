@@ -22,8 +22,8 @@ Robot::~Robot()
 {
 }
 
-NetworkError Robot::initialize(const char* cmd_host, unsigned int cmd_port,
-							   const char* tel_host, unsigned int tel_port, bool tel_tcp,
+NetworkError Robot::initialize(const char* cmd_host, const char* cmd_port,
+							   const char* tel_host, const char* tel_port, const char* tel_proto,
 							   unsigned int start_timeout_ms)
 {
 	NetworkError res;
@@ -31,7 +31,7 @@ NetworkError Robot::initialize(const char* cmd_host, unsigned int cmd_port,
 	if (res != networkOK) {
 		return res;
 	}
-	res = telemetry.initialize(tel_host, tel_port, tel_tcp, start_timeout_ms);
+	res = telemetry.initialize(tel_host, tel_port, tel_proto, start_timeout_ms);
 	if (res != networkOK) {
 		return res;
 	}
@@ -49,7 +49,7 @@ void Robot::get_telemetry()
 	bool available = false;
 	NetworkError res = telemetry.has_packet(available);
 	if (res != networkOK) {
-		fprintf(stderr, "has packet error: %d\n", res);
+		printf("Robot::get_telemetry has packet error: %d\n", res);
 		return;
 	}
 	if (available) {
@@ -57,7 +57,7 @@ void Robot::get_telemetry()
 		memset(&p, 0, sizeof(TelemetryPacket));
 		res = telemetry.get_packet(p);
 		if (res != networkOK) {
-			fprintf(stderr, "get packet error: %d\n", res);
+			printf("Robot::get_telemetry get packet error: %d\n", res);
 			return;
 		}
 		printf("pos=(%.2f,%.2f) th=%.2f° v=(%.2f,%.2f,%.2f) w=(%.2f,%.2f,%.2f) lidar n=%u, [%.2f, ... %.2f]\n",

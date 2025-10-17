@@ -20,9 +20,9 @@ Commands::~Commands()
 {
 }
 
-NetworkError Commands::initialize(const char* hostname, unsigned int port)
+NetworkError Commands::initialize(const char* _hostname, const char* _port)
 {
-	NetworkError res = Network::connect(hostname, port, false);
+	NetworkError res = Network::connect(_hostname, _port, "udp");
 	if (res != networkOK) {
 		return res;
 	}

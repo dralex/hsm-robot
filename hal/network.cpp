@@ -28,10 +28,14 @@
 
 using namespace HSMRobot;
 
+const char* TCP_PROTO = "tcp";
+const char* UDP_PROTO = "udp";
+
 Network::Network():
 	connected(false), tcp(false), server(false), listen_fd(-1), fd(-1)
 {
-	*hostname = 0;
+	memset(hostname, 0, sizeof(hostname));
+	memset(port, 0, sizeof(port));
 }
 
 Network::~Network()
@@ -41,14 +45,22 @@ Network::~Network()
 	}
 }
 
-NetworkError Network::init_socket(const char* _hostname, unsigned int _port, bool _tcp)
+NetworkError Network::init_socket_type(const char* _hostname, const char* _port, const char* proto)
 {
 	if (connected || server) return networkBadArguments;
 	if (!_hostname) return networkBadArguments;
 
 	strncpy(hostname, _hostname, ADDRESS_BUFFER_SIZE - 1);
-	snprintf(port, PORT_BUFFER_SIZE - 1, "%u", _port);
-	tcp = _tcp;
+	strncpy(port, _port, PORT_BUFFER_SIZE - 1);
+	if (strcmp(proto, TCP_PROTO) == 0) {
+		tcp = true;
+	} else {
+		tcp = false;
+		if (strcmp(proto, UDP_PROTO) != 0) {
+			printf("Network::init_socket Bad protocol '%s'.\n", proto);
+			return networkBadArguments;			
+		}
+	}
 	return networkOK;
 }
 
@@ -61,9 +73,9 @@ NetworkError Network::is_connected(bool& _connected)
 	return networkOK;
 }
 
-NetworkError Network::connect(const char* _hostname, unsigned int _port, bool _tcp)
+NetworkError Network::connect(const char* _hostname, const char* _port, const char* proto)
 {
-	NetworkError res = init_socket(_hostname, _port, _tcp);
+	NetworkError res = init_socket_type(_hostname, _port, proto);
 	if (res != networkOK) {
 		return res;
 	}
@@ -80,26 +92,27 @@ NetworkError Network::connect(const char* _hostname, unsigned int _port, bool _t
 	}
 	
 	if (getaddrinfo(hostname, port, &address, &result) < 0) {
-		fprintf(stderr, "Bad connect address %s:%s\n", hostname, port);
+		printf("Network::connect Bad connect address %s:%s\n", hostname, port);
 		return networkBadAddress;
 	}
 
 	for (rp = result; rp != NULL; rp = rp->ai_next) {
 		fd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
 		if (fd < 0) {
-			fprintf(stderr, "Socket init error: %d\n", fd);
+			printf("Network::connect Socket init error: %d\n", errno);
 			continue;
 		}
 		if (::connect(fd, rp->ai_addr, rp->ai_addrlen) != -1) {
 			break;
 		}
+		printf("Network::connect error: %d\n", errno);
 		close(fd);
 	}
 
     freeaddrinfo(result);
 			
 	if (rp == NULL) {
-		fprintf(stderr, "No connect address %s:%s\n", hostname, port);
+		printf("Network::connect No connect address %s:%s\n", hostname, port);
 		return networkBadAddress;
 	}
 
@@ -109,7 +122,7 @@ NetworkError Network::connect(const char* _hostname, unsigned int _port, bool _t
 		fd = -1;
 		return res;
 	}
-	fprintf(stderr, "Connected to %s:%s.\n", hostname, port);
+	printf("Network::connect Connected to %s:%s proto %s.\n", hostname, port, proto);
 	server = false;
 	connected = true;
 	return networkOK;
@@ -122,21 +135,22 @@ NetworkError Network::set_nonblocking(int _fd)
 	}
 
 #ifdef WIN32
-	// TODO
 	int mode = 1;
-	if (ioctlsocket(m_socket, FIONBIO, &mode) != NO_ERROR) {
+	int err;
+	if ((err = ioctlsocket(m_socket, FIONBIO, &mode)) != NO_ERROR) {
+		printf("Network::set_nonblocking error %d\n", err);		
 		return networkError;
 	}
 #else
 	int flags = fcntl(_fd, F_GETFL);
 	if (flags < 0) {
-		fprintf(stderr, "fcntl error %d\n", flags);
+		printf("Network::set_nonblocking fcntl error %d\n", errno);
 		return networkError;
 	}
 	int res;
 	if ((res = fcntl(_fd, F_SETFL, flags | O_NONBLOCK)) < 0) {
-		fprintf(stderr, "set nonblocking flag error %d\n", res);
-		return networkError;		
+		printf("Network::set_nonblocking flag error %d\n", errno);
+		return networkError;
 	}
 #endif
 	
@@ -144,9 +158,9 @@ NetworkError Network::set_nonblocking(int _fd)
 	
 }
 
-NetworkError Network::listen(const char* _hostname, unsigned int _port, bool _tcp)
+NetworkError Network::listen(const char* _hostname, const char* _port, const char* proto)
 {
-	NetworkError res = init_socket(_hostname, _port, _tcp);
+	NetworkError res = init_socket_type(_hostname, _port, proto);
 	if (res != networkOK) {
 		return res;
 	}
@@ -163,27 +177,29 @@ NetworkError Network::listen(const char* _hostname, unsigned int _port, bool _tc
 	}
 	
 	if (getaddrinfo(hostname, port, &address, &result) < 0) {
-		fprintf(stderr, "Bad listen address %s:%s\n", hostname, port);
+		printf("Network::listen Bad listen address %s:%s\n", hostname, port);
 		return networkBadAddress;
 	}
 
 	for (rp = result; rp != NULL; rp = rp->ai_next) {
 		listen_fd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
 		if (listen_fd < 0) {
+			printf("Network::listen Socket init error: %d\n", errno);
 			continue;
 		}
 		if (bind(listen_fd, rp->ai_addr, rp->ai_addrlen) == 0) {
-			if (::listen(listen_fd, 1) == 0) {
+			if (!tcp || ::listen(listen_fd, 1) == 0) {
 				break;
 			}
 		}
+		printf("Network::listen bind error: %d\n", errno);
 		close(listen_fd);
 	}
 
     freeaddrinfo(result);
 
 	if (rp == NULL) {
-		fprintf(stderr, "No connect listen %s:%s\n", hostname, port);
+		printf("Network::listen No listen socket %s:%s\n", hostname, port);
 		return networkBadAddress;		
 	}
 
@@ -191,7 +207,7 @@ NetworkError Network::listen(const char* _hostname, unsigned int _port, bool _tc
 	if (res != networkOK) {
 		return res;
 	}
-	fprintf(stderr, "Listening on %s:%u.\n", _hostname, _port);
+	printf("Network::listen Listening on %s:%s proto %s.\n", hostname, port, proto);
 	server = true;
 	connected = false;
 	return networkOK;	
@@ -213,7 +229,7 @@ NetworkError Network::has_connection(bool& available)
 	
 	int res = select(listen_fd + 1, &set, NULL, NULL, NULL);
 	if (res < 0) {
-		fprintf(stderr, "select error %d\n", res);
+		printf("Network::has_connection select error %d\n", errno);
 		return networkError;
 	}
 	available = res != 0;
@@ -237,11 +253,11 @@ NetworkError Network::wait_connection(unsigned int millisec)
 		
 		int r = select(listen_fd + 1, &set, NULL, NULL, &timeout);
 		if (r < 0) {
-			fprintf(stderr, "select error %d\n", r);
+			printf("Network::wait_connection select error %d\n", errno);
 			return networkError;
 		}
 		if (r == 0) {
-			fprintf(stderr, "timeout error\n");
+			printf("Network::wait_connection timeout error\n");
 			return networkTimeout;
 		}
 
@@ -264,7 +280,7 @@ NetworkError Network::accept_connection()
 	if (tcp) {
 		fd = accept(listen_fd, NULL, NULL);
 		if (fd < 0) {
-			fprintf(stderr, "accept error %d\n", errno);
+			printf("Network::accept_connection accept error %d\n", errno);
 			return networkError;
 		}
 		
@@ -276,7 +292,7 @@ NetworkError Network::accept_connection()
 		fd = listen_fd;
 		listen_fd = -1;
 	}
-	fprintf(stderr, "Connection accepted.\n");
+	printf("Network::accept_connection Connection accepted.\n");
 	connected = true;
 	return networkOK;
 }
@@ -302,6 +318,7 @@ NetworkError Network::has_data(bool& available, unsigned int millisec)
 		r = select(fd + 1, &set, NULL, NULL, NULL);
 	}
 	if (r < 0) {
+		printf("Network::has_data select error %d\n", errno);
 		return networkError;
 	}
 	available = r != 0;

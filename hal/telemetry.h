@@ -43,7 +43,7 @@ namespace HSMRobot {
 		Telemetry();
 		~Telemetry();
 
-		NetworkError initialize(const char* hostname, unsigned int port, bool tcp, unsigned int timeout);
+		NetworkError initialize(const char* hostname, const char* port, const char* proto, unsigned int timeout);
 		NetworkError is_connected(bool& connected) { return Network::is_connected(connected); }
 		NetworkError has_packet(bool& available);
 		NetworkError get_packet(TelemetryPacket& packet);

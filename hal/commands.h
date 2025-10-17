@@ -21,7 +21,7 @@ namespace HSMRobot {
 		Commands();
 		~Commands();
 		
-		NetworkError initialize(const char* hostname, unsigned int port);
+		NetworkError initialize(const char* hostname, const char* port);
 		NetworkError send(float v, float a);
 	};
 

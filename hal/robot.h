@@ -23,8 +23,8 @@ namespace HSMRobot {
 		Robot();
 		~Robot();
 		
-		NetworkError initialize(const char* cmd_host, unsigned int cmd_port,
-								const char* tel_host, unsigned int tel_port, bool tel_tcp,
+		NetworkError initialize(const char* cmd_host, const char* cmd_port,
+								const char* tel_host, const char* tel_port, const char* tel_proto,
 								unsigned int start_timeout_ms);
 
 		void         go_ahead();         // go ahead until we found a wall (see MAX_VELOCITY; STOP_BEFORE)
