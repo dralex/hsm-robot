@@ -60,6 +60,7 @@ namespace HSMRobot {
 		bool         server;
 		int          listen_fd;
 		int          fd;
+		size_t       counter;
 	};
 
 }

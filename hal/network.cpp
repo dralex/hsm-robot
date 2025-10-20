@@ -36,6 +36,7 @@ Network::Network():
 {
 	memset(hostname, 0, sizeof(hostname));
 	memset(port, 0, sizeof(port));
+	counter = 0;
 }
 
 Network::~Network()
@@ -341,9 +342,14 @@ NetworkError Network::recv_data(char* buffer, size_t buffer_len, size_t& receive
 	if (res < 0) {
 		return networkReadError;
 	} else if (res == 0) {
-		received = false;
+		received = 0;
 	} else {
+		counter += (size_t)res;
 		received = (size_t)res;
+		if (counter > 1024 * 1024) {
+			printf("1M\n");
+			counter -= 1024 * 1024;
+		}
 	}
 	return networkOK;
 }

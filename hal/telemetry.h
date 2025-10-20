@@ -20,6 +20,8 @@ namespace HSMRobot {
 	const size_t MAX_LIDAR_POINTS = 512;
 	const size_t TELEMETRY_PACKET_LEN_MIN = sizeof(float) * 9 + sizeof(uint32_t);
 	const size_t TELEMETRY_BUFFER_LEN = TELEMETRY_PACKET_LEN_MIN + MAX_LIDAR_POINTS * sizeof(float);
+	const size_t BIG_BUFFER_LEN = 4 * 1024 * 1024;
+	const char* const  LOG_FILE = "telemetry.log";
 
 	struct TelemetryPacketMin {
 		float odom_x;                   // одометрия X (м)
@@ -46,11 +48,14 @@ namespace HSMRobot {
 		NetworkError initialize(const char* hostname, const char* port, const char* proto, unsigned int timeout);
 		NetworkError is_connected(bool& connected) { return Network::is_connected(connected); }
 		NetworkError has_packet(bool& available);
-		NetworkError get_packet(TelemetryPacket& packet);
+		NetworkError get_packet(TelemetryPacket& packet, bool& ready);
 
 	private:
-		char   buffer[TELEMETRY_BUFFER_LEN];
-		size_t buffer_read;
+
+		void log_telemetry(const TelemetryPacket& packet);
+		
+		char   buffer[BIG_BUFFER_LEN];
+		size_t buffer_read, bytes_left;
 	};
 
 }
